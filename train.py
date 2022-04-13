@@ -12,6 +12,8 @@ from teacher import attention_unet
 from student import non_attention_unet
 from data_gen import img_dataset
 from distiller import Distiller
+from mmd import MMD
+from mmd_funz import mmd_loss
 
 
 # Press the green button in the gutter to run the script.
@@ -46,17 +48,18 @@ if __name__ == '__main__':
         #### Define model
         opt = Adam(learning_rate=1e-4, epsilon=None, amsgrad=False, beta_1=0.9, beta_2=0.99)
         teacher = attention_unet((256, 256, 3))
+        # teacher.load_weights("/home/alecacciatore/attentionUNet/src/1.attention_unet/attUnet_wts1.hdf5")
         teacher.load_weights("E:/sinc/segmentation/attentionUNet/1.attUNet/attUnet_wts1.hdf5")
 
         student = non_attention_unet((256, 256, 3))
 
         dist = Distiller()
-        distiller = dist(student=student, teacher=teacher)
+        distiller = dist(student=student, teacher=teacher, batch=16)
 
         distiller.compiles(
             optimizer=opt,
             student_loss_fn=dice_loss,
-            distillation_loss_fn=dice_loss,
+            distillation_loss_fn=mmd_loss,
             metrics=[iou]
         )
 
@@ -69,7 +72,8 @@ if __name__ == '__main__':
                                  fill_mode='nearest')
         batch = 16
 
-        callbacks = [ModelCheckpoint("attUnet_wts1.hdf5", verbose=1, save_best_only=True),
+        callbacks = [ModelCheckpoint("distUNet_wts1-{epoch:02d}.hdf5", verbose=1, save_best_only=True, monitor='val_loss',
+                                     save_weights_only=True),
                      ReduceLROnPlateau(monitor='val_loss', factor=0.1, verbose=1, patience=5, min_lr=1e-6),
                      EarlyStopping(monitor='val_loss', restore_best_weights=True, patience=15)]
         train = img_dataset(df_train, 'filepath', 'mask', augmentation_args, batch)

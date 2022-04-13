@@ -34,14 +34,15 @@ def non_attention_block(l_layer, h_layer):  # Attention Block
     return x
 
 
-def decoder_block(inp, filters, concat_layer):
+def decoder_block(inp, filters, concat_layer, act=True):
     x = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same')(inp)
     # concat_layer = non_attention_block(inp, concat_layer)
     # x = concatenate([x, concat_layer])
     # x = conv_block(x, filters)
     x = Conv2D(filters, (3, 3), padding='same')(x)
     x = BatchNormalization(axis=3)(x)
-    x = Activation('relu')(x)
+    if act:
+        x = Activation('relu')(x)
     return x
 
 
@@ -56,7 +57,8 @@ def non_attention_unet(input_size):
     e2 = decoder_block(b1, 512, d4)
     e3 = decoder_block(e2, 256, d3)
     e4 = decoder_block(e3, 128, d2)
-    e5 = decoder_block(e4, 64, d1)
-    outputs = Conv2D(1, (1, 1), activation="sigmoid")(e5)
+    e5 = decoder_block(e4, 64, d1, act=False)
+    e6 = Activation('relu')(e5)
+    outputs = Conv2D(1, (1, 1), activation="sigmoid")(e6)
 
-    return Model(inputs=[inputs], outputs=[b0, outputs], name='AttnetionUnet')
+    return Model(inputs=[inputs], outputs=[outputs], name='studentUnet')
